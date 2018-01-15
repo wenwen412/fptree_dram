@@ -54,8 +54,11 @@ int main( int argc, char ** argv ) {
 
     while (fgets(buf, sizeof buf, fp)) {
         nums++;
+        int len = strlen(buf);
+        buf[len-1] = '\0';
         fscanf(fp, "%d\n", &input);
-        root = insert(root, input, input);
+
+        root = insert(root, buf, input);
     }
     print_tree(root);
 
