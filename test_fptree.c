@@ -13,7 +13,9 @@ int main( int argc, char ** argv ) {
     char * input_file;
     FILE * fp;
     node * root;
-    int input, range2;
+    //char * input, range2;
+    char input[24], range2[24];
+    int num_input;
     char instruction;
     char license_part;
 
@@ -56,9 +58,9 @@ int main( int argc, char ** argv ) {
         nums++;
         int len = strlen(buf);
         buf[len-1] = '\0';
-        fscanf(fp, "%d\n", &input);
-
-        root = insert(root, buf, input);
+        fscanf(fp, "%d\n", &num_input);
+        root = insert(root, buf, num_input);
+        print_tree(root);
     }
     print_tree(root);
 
@@ -70,26 +72,26 @@ int main( int argc, char ** argv ) {
     while (scanf("%c", &instruction) != EOF) {
         switch (instruction) {
             case 'd':
-                scanf("%d", &input);
+                scanf("%s", input);
                 root = delete(root, input);
                 print_tree(root);
                 break;
             case 'i':
-                scanf("%d", &input);
+                scanf("%s", &input);
                 root = insert(root, input, input);
                 print_tree(root);
                 break;
             case 'f':
             case 'p':
-                scanf("%d", &input);
+                scanf("%s", &input);
                 find_and_print(root, input, instruction == 'p');
                 break;
             case 'r':
-                scanf("%d %d", &input, &range2);
+                scanf("%s %d", &input, &range2);
                 if (input > range2) {
                     int tmp = range2;
-                    range2 = input;
-                    input = tmp;
+                    // range2 = input;
+                    // input = tmp;
                 }
                 find_and_print_range(root, input, range2, instruction == 'p');
                 break;

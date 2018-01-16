@@ -202,10 +202,10 @@ node * insert( node * root, char * key, int value );
 int get_neighbor_index( node * n );
 node * adjust_root(node * root);
 node * coalesce_nodes(node * root, node * n, node * neighbor,
-                      int neighbor_index, int k_prime);
+                      int neighbor_index, char * k_prime);
 node * redistribute_nodes(node * root, node * n, node * neighbor,
                           int neighbor_index,
-                          int k_prime_index, int k_prime);
-node * delete_entry( node * root, node * n, int key, void * pointer );
-node * delete( node * root, int key );
+                          int k_prime_index, char * k_prime);
+node * delete_entry( node * root, node * n, char * key, void * pointer );
+node * delete( node * root, char * key );
 node * destroy_tree(node * root);
