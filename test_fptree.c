@@ -42,31 +42,58 @@ int main( int argc, char ** argv ) {
             perror("Failure to open input file.");
             exit(EXIT_FAILURE);
         }
-//        while (!feof(fp)) {
-//            fscanf(fp, "%d\n", &input);
-//            root = insert(root, input, input);
-//        }
     }
 
-    int nums = 0;
+    int nums = 0, line =0;
     clock_t start, finish;
     double duration;
+    record * r;
     char buf[512];
     start = clock();
+    int len = 0;
 
     while (fgets(buf, sizeof buf, fp)) {
-        nums++;
-        int len = strlen(buf);
+        len = strlen(buf);
         buf[len-1] = '\0';
-        fscanf(fp, "%d\n", &num_input);
-        root = insert(root, buf, num_input);
-        print_tree(root);
+        root = insert(root, (char*)buf, nums);
+        nums++;
     }
-    print_tree(root);
+    // print_tree(root);
 
     finish = clock();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf( "RART Insert spends %f seconds\n", duration );
+    printf( "FPTree Insert spends %f seconds\n", duration );
+
+    /* Search */
+    fseek(fp, 0, SEEK_SET);
+    line = 1;
+    start = clock();
+    while (fgets(buf, sizeof buf, fp)) {
+        len = strlen(buf);
+        buf[len-1] = '\0';
+        r = find(root, buf, false, NULL);
+        line++;
+    }
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf( "FPTree search spends %f seconds\n", duration );
+
+
+    /* delete */
+    line = 1;
+    fseek(fp, 0, SEEK_SET);
+    start = clock();
+    uintptr_t val;
+    while (fgets(buf, sizeof buf, fp)) {
+        len = strlen(buf);
+        buf[len-1] = '\0';
+        root = delete(root, buf);
+        line++;
+    }
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf( "RART deletion spends %f seconds\n", duration );
+
 
     printf("> ");
     while (scanf("%c", &instruction) != EOF) {
@@ -74,7 +101,7 @@ int main( int argc, char ** argv ) {
             case 'd':
                 scanf("%s", input);
                 root = delete(root, input);
-                print_tree(root);
+                // print_tree(root);
                 break;
             case 'i':
                 scanf("%s", &input);
@@ -124,53 +151,3 @@ int main( int argc, char ** argv ) {
 
     return EXIT_SUCCESS;
 }
-
-
-
-/*
-int main(int argc, char **argv) {
-    clock_t start, finish;
-    double duration;
-    start = clock();
-
-    char * filename = argv[1];
-
-    //test_art_insert();
-    //test_art_insert_verylong();
-    test_art_insert_search(filename);
-    //test_art_insert_delete();
-    //test_art_insert_iter();
-
-    finish = clock();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf( "%f seconds\n", duration );
-}
-
-*/
-/*
-int test_FPTree(char * filename)
-{
-    node *root;
-    clock_t start, finish;
-    double duration;
-    int len, nums, input;
-    char buf[512];
-    FILE *f = fopen(filename, "r");
-    uint64_t line = 1;
-    start = clock();
-
-    while (fgets(buf, sizeof buf, f)) {
-        nums++;
-        fscanf(f, "%d\n", &input);
-        root = insert(root, input, input);
-        }
-    uint64_t nlines = line - 1;
-
-    finish = clock();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf( "RART Insert spends %f seconds\n", duration );
-    stats_report();
-    printf( "Flush count is %d \n", extra_latency);
-    fclose(f);
-    print_tree(root);
-}*/

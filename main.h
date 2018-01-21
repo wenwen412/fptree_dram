@@ -19,7 +19,7 @@
 
 
 // Default order is 4.
-#define DEFAULT_ORDER 5
+#define DEFAULT_ORDER 49
 
 // Minimum order is necessarily 3.  We set the maximum
 // order arbitrarily.  You may change the maximum order.
@@ -48,7 +48,6 @@ typedef unsigned char byte;
 #define IS_LEAF(x) (((uintptr_t)x & 1))
 #define SET_LEAF(x) ((void*)((uintptr_t)x | 1))
 #define LEAF_RAW(x) ((leaf_node*)((void*)((uintptr_t)x & ~1)))
-
 
 typedef struct micro_log {
     void * p_current;
@@ -104,7 +103,7 @@ typedef struct record {
  */
 typedef struct node {
     void ** pointers;
-    char ** keys;
+    char * keys[MAX_KEYS];
     struct node * parent;
     /* bool is_leaf; Design 2 kinds of nodes instead of using a is_leaf flag */
     int num_keys;
@@ -123,39 +122,10 @@ typedef struct leaf_node {
     unsigned  char fingerprint[49]; //1 bytes * n
 
     void ** pointers;
-    char ** keys;
+    char * keys[MAX_KEYS];
     struct node * parent;
 } leaf_node;
 
-
-/* Type representing a node in the B+ tree.
- * This type is general enough to serve for both
- * the leaf and the internal node.
- * The heart of the node is the array
- * of keys and the array of corresponding
- * pointers.  The relation between keys
- * and pointers differs between leaves and
- * internal nodes.  In a leaf, the index
- * of each key equals the index of its corresponding
- * pointer, with a maximum of order - 1 key-pointer
- * pairs.  The last pointer points to the
- * leaf to the right (or NULL in the case
- * of the rightmost leaf).
- * In an internal node, the first pointer
- * refers to lower nodes with keys less than
- * the smallest key in the keys array.  Then,
- * with indices i starting at 0, the pointer
- * at i + 1 points to the subtree with keys
- * greater than or equal to the key in this
- * node at index i.
- * The num_keys field is used to keep
- * track of the number of valid keys.
- * In an internal node, the number of valid
- * pointers is always num_keys + 1.
- * In a leaf, the number of valid pointers
- * to data is always num_keys.  The
- * last leaf pointer points to the next leaf.
- */
 // Output and utility.
 
 
@@ -181,7 +151,7 @@ int cut( int length );
 // Insertion.
 
 record * make_record(int value);
-node * make_node( bool is_leaf );
+node * make_node( );
 node * make_leaf( void );
 int get_left_index(node * parent, node * left);
 node * insert_into_leaf( node * leaf, char * key, record * pointer );
