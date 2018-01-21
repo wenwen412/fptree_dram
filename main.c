@@ -55,6 +55,7 @@
 #include "main.h"
 
 
+
 // GLOBALS.
 
 /* The order determines the maximum and minimum
@@ -148,8 +149,9 @@ static bool get  (byte,   byte);
 static void set  (byte *, byte);
 static void reset(byte *, byte);
 
-/* CAREFUL WITH pos AND BITMAP SIZE! */
 
+/* Bitmap operatios
+ * Use bitmapGet(), bitmapSet(), and bitmapReset() for operations on bitmap*/
 bool bitmapGet(byte *bitmap, int pos) {
 /* gets the value of the bit at pos */
     if (pos > MAX_KEYS - 1)
@@ -198,16 +200,6 @@ static void reset(byte *a, byte pos) {
 }
 
 
-
-
-// FUNCTION PROTOTYPES.
-
-
-
-
-
-
-// FUNCTION DEFINITIONS.
 
 // OUTPUT AND UTILITIES
 
@@ -352,7 +344,7 @@ void print_leaves( node * root ) {
         for (i = 0; i < c->num_keys; i++) {
             if (verbose_output)
                 printf("%lx ", (unsigned long)c->pointers[i]);
-            printf("%d ", c->keys[i]);
+            printf("%s ", c->keys[i]);
         }
         if (verbose_output)
             printf("%lx ", (unsigned long)c->pointers[order - 1]);
@@ -386,19 +378,9 @@ int height( node * root ) {
  * are for sort function to get a split key
  */
 typedef struct key_index_pair{
-    int key;
+    char * key;
     int index;
 }key_index_pair;
-
-
-/*A qsort comparator for numbers (e.g., int)
- * For string comparator, please use string_comparator*/
-int comparator(const void *p, const void *q)
-{
-    int l = ((key_index_pair *)p)->key;
-    int r = ((key_index_pair *)q)->key;
-    return (l - r);
-}
 
 
 /* Compare 2 keys in string format
@@ -406,33 +388,48 @@ int comparator(const void *p, const void *q)
 * key1 < key2: return negative value
 * key1 = key2: return 0
  */
-
-int string_comparator(char *key1, char *key2) {
+int string_comparator(char * key1, char * key2){
     if(strlen(key1) > strlen(key2))
         return 1;
     else if (strlen(key1) < strlen(key2))
         return -1;
-        /* when key sizes are equal, need to compare 1 by 1*/
     else{
         return strcmp(key1, key2);
     }
 }
 
+
+/* A qsort comparator for numbers (e.g., int)
+ */
+/* int comparator(const void *p, const void *q)
+{
+    int l = ((key_index_pair *)p)->key;
+    int r = ((key_index_pair *)q)->key;
+    return (l - r);
+} */
+int comparator(const void *p, const void *q) {
+    char *key1, *key2;
+    key1 = ((key_index_pair *) p)->key;
+    key2 = ((key_index_pair *) q)->key;
+    return string_comparator(key1, key2);
+}
+
+
 /* function to find a median point to split a leaf:
  * First store all valid key/index pairs in an array
- * Then sort on the array*/
-int find_split_key(struct leaf_node *leaf)
-{
+ * Then sort on the array
+ */
+char * find_split_key(struct leaf_node *leaf) {
 
     key_index_pair tmp_array[order - 1];
+    for(int i = 0; i < order -1; i++)
+        tmp_array[i].key = malloc(sizeof(char) * MAX_KEY_LEN);
     int i, j =0;
     for (i = 0; i < order - 1 ; ++i) {
-        if(bitmapGet(leaf->bitmap, i))
-        {
+        if(bitmapGet(leaf->bitmap, i)) {
             tmp_array[j].index = i;
             tmp_array[j++].key = leaf->keys[i];
         }
-
     }
     qsort(tmp_array, i, sizeof(key_index_pair),comparator);
     int index = (int)(i/2);
@@ -502,7 +499,7 @@ void print_tree( node * root ) {
                 if (verbose_output && bitmapGet(leaf_n->bitmap, i))
                     printf("%lx ", (unsigned long)n->pointers[i]);
                 if (bitmapGet(leaf_n->bitmap, i))
-                    printf("%d ", leaf_n->keys[i]);
+                    printf("%s ", leaf_n->keys[i]);
             }
             if (verbose_output) {
                 printf("%lx ", (unsigned long)leaf_n->pointers[order - 1]);
@@ -524,7 +521,7 @@ void print_tree( node * root ) {
             for (i = 0; i < n->num_keys; i++) {
                 if (verbose_output)
                     printf("%lx ", (unsigned long)n->pointers[i]);
-                printf("%d ", n->keys[i]);
+                printf("%s ", n->keys[i]);
             }
             if (!IS_LEAF(n))
                 for (i = 0; i <= n->num_keys; i++)
@@ -541,12 +538,12 @@ void print_tree( node * root ) {
 /* Finds the record under a given key and prints an
  * appropriate message to stdout.
  */
-void find_and_print(node * root, int key, bool verbose) {
+void find_and_print(node * root, char * key, bool verbose) {
     record * r = find(root, key, verbose, NULL);
     if (r == NULL)
-        printf("Record not found under key %d.\n", key);
+        printf("Record not found under key %s.\n", key);
     else
-        printf("Record at %lx -- key %d, value %d.\n",
+        printf("Record at %lx -- key %s, value %d.\n",
                (unsigned long)r, key, r->value);
 }
 
@@ -584,7 +581,7 @@ int find_range( node * root, int key_start, int key_end, bool verbose,
                 int returned_keys[], void * returned_pointers[]) {
     int i, num_found;
     num_found = 0;
-    node * n = find_leaf( root, key_start, verbose );
+    node * n = find_leaf( root, key_start, verbose);
     if (n == NULL) return 0;
     for (i = 0; i < n->num_keys && n->keys[i] < key_start; i++) ;
     if (i == n->num_keys) return 0;
@@ -608,7 +605,7 @@ int find_range( node * root, int key_start, int key_end, bool verbose,
  * For FPTree: We don't need to change anything
  * Since inner nodes doesnot need to be changed
  */
-node * find_leaf( node * root, int key, bool verbose ) {
+node * find_leaf( node * root, char * key, bool verbose ) {
     int i = 0;
     node * c = root;
     if (c == NULL) {
@@ -622,11 +619,11 @@ node * find_leaf( node * root, int key, bool verbose ) {
             printf("[");
             for (i = 0; i < c->num_keys - 1; i++)
                 printf("%d ", c->keys[i]);
-            printf("%d] ", c->keys[i]);
+            printf("%s] ", c->keys[i]);
         }
         i = 0;
         while (i < c->num_keys) {
-            if (key >= c->keys[i]) i++;
+            if (string_comparator(key, c->keys[i]) >= 0) i++;
             else break;
         }
         if (verbose)
@@ -636,8 +633,8 @@ node * find_leaf( node * root, int key, bool verbose ) {
     if (verbose) {
         printf("Leaf [");
         for (i = 0; i < c->num_keys - 1; i++)
-            printf("%d ", c->keys[i]);
-        printf("%d] ->\n", c->keys[i]);
+            printf("%s ", c->keys[i]);
+        printf("%s] ->\n", c->keys[i]);
     }
     return c;
 }
@@ -646,18 +643,18 @@ node * find_leaf( node * root, int key, bool verbose ) {
 /* Finds and returns the record to which
  * a key refers.
  */
-record * find( node * root, int key, bool verbose, record * r ) {
+record * find( node * root, char * key, bool verbose, record * r ) {
     int i = 0;
     leaf_node * l;
     node * c = find_leaf( root, key, verbose );
     if (c == NULL) return NULL;
     if (!IS_LEAF(c)) return NULL;
     l = LEAF_RAW(c);
+
     // FIXME: replace with a Fingerptint prob function
     for (i = 0; i < order - 1; i++)
-        if (bitmapGet(l->bitmap, i))
-        {
-            if (l->keys[i] == key)
+        if (bitmapGet(l->bitmap, i)) {
+            if (strcmp(l->keys[i], key) == 0)
                 if (r != NULL){
                     pfree(l->pointers[i], sizeof(record));
                     l->pointers[i] = r;
@@ -705,21 +702,29 @@ record * make_record(int value) {
 /* Creates a new general node, which can be adapted
  * to serve as either a leaf or an internal node.
  */
-node * make_node( bool is_leaf ) {
+node * make_node( ) {
     node * new_node;
-    if (is_leaf)
-        new_node = pmalloc(sizeof(node));
-    else
-        new_node = malloc(sizeof(node));
+    new_node = malloc(sizeof(node));
     if (new_node == NULL) {
         perror("Node creation.");
         exit(EXIT_FAILURE);
     }
-    new_node->keys = malloc( (order - 1) * sizeof(int) );
+
+    /* new_node->keys = malloc( (order - 1) * sizeof(int) ); */
     if (new_node->keys == NULL) {
         perror("New node keys array.");
         exit(EXIT_FAILURE);
     }
+    new_node->keys[0] = (char *)malloc(sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+    if (new_node->keys[0] == NULL) {
+        perror("New node keys array.");
+        exit(EXIT_FAILURE);
+    }
+    for(int i=1; i<MAX_KEYS; i++)
+    {
+        new_node->keys[i] = new_node->keys[i-1] + MAX_KEY_LEN;
+    }
+
     new_node->pointers = malloc( order * sizeof(void *) );
     if (new_node->pointers == NULL) {
         perror("New node pointers array.");
@@ -732,12 +737,15 @@ node * make_node( bool is_leaf ) {
     return new_node;
 }
 
+
 /* Creates a new leaf
  * and then adapting it appropriately.
  */
 void ** pointers;
 int * keys;
 struct node * parent;
+
+
 node * make_leaf( void ) {
     node * FPT_node;
     leaf_node *l;
@@ -757,9 +765,13 @@ node * make_leaf( void ) {
         l->fingerprint[i] = 0;
     }
 
-    l->keys = pmalloc( (order - 1) * sizeof(int));
+    l->keys[0] = (char *)pmalloc(sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+    for(int i=1; i<MAX_KEYS; i++)
+    {
+        l->keys[i] = l->keys[i-1] + MAX_KEY_LEN;
+    }
 
-    l->pointers = pmalloc( order * sizeof(void *) );
+    l->pointers = pmalloc(order * sizeof(void *));
     if (l->pointers == NULL) {
         perror("New node pointers array.");
         exit(EXIT_FAILURE);
@@ -774,8 +786,6 @@ node * make_leaf( void ) {
  * to find the index of the parent's pointer to
  * the node to the left of the key to be inserted.
  */
-/*FIXME: now the problem is: sometimes when leaf becomes inner node
- * we forget to reorder the inner node*/
 int get_left_index(node * parent, node * left) {
 
     int left_index = 0;
@@ -790,7 +800,7 @@ int get_left_index(node * parent, node * left) {
  * key into a leaf.
  * Returns the altered leaf.
  */
-node * insert_into_leaf( node * l, int key, record * pointer ) {
+node * insert_into_leaf( node * l, char * key, record * pointer ) {
 
     leaf_node *leaf = LEAF_RAW(l);
     int insertion_point;
@@ -799,11 +809,11 @@ node * insert_into_leaf( node * l, int key, record * pointer ) {
     // FPTree change: need to check bitmap to find a free spot
     while(bitmapGet(leaf->bitmap, insertion_point))
         insertion_point++;
-    leaf->keys[insertion_point] = key;
+    strcpy(leaf->keys[insertion_point], key);
     leaf->pointers[insertion_point] = pointer;
     leaf->num_keys++;
     persistent(&(leaf->keys[insertion_point]),
-               sizeof(leaf->keys[insertion_point]), 2);
+               strlen(leaf->keys[insertion_point]), 2);
     persistent(&(leaf->pointers[insertion_point]), sizeof(void *), 2);
     bitmapSet(leaf->bitmap, insertion_point);
     persistent(leaf->bitmap, sizeof(char)*7, 2);
@@ -816,11 +826,11 @@ node * insert_into_leaf( node * l, int key, record * pointer ) {
  * the tree's order, causing the leaf to be split
  * in half.
  */
-node * insert_into_leaf_after_splitting(node * root, node * leaf, int key,
+node * insert_into_leaf_after_splitting(node * root, node * leaf, char * key,
                                         record * pointer){
 
     node * new_leaf;
-    int new_key, i;
+    char * new_key;
 
     new_leaf = make_leaf();
     leaf_node *n_leaf = LEAF_RAW(new_leaf);
@@ -838,19 +848,30 @@ node * insert_into_leaf_after_splitting(node * root, node * leaf, int key,
      */
     memcpy(n_leaf->bitmap, o_leaf->bitmap, sizeof(char)*7);
     memcpy(n_leaf->fingerprint, o_leaf->fingerprint, sizeof(char)*49);
-    memcpy(n_leaf->keys, o_leaf->keys, sizeof(int)*(order - 1));
+    /* memcpy(n_leaf->keys, o_leaf->keys, sizeof(int)*(order - 1)); */
+
+    memcpy(n_leaf->keys[0], o_leaf->keys[0],
+           sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+    for(int i=1; i<MAX_KEYS; i++)
+    {
+        n_leaf->keys[i] = n_leaf->keys[i-1] + MAX_KEY_LEN;
+    }
+    /*persistent() on every keys in the leaf */
+    persistent(n_leaf->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN , 2);
+    /* persistent on the pointers to the keys */
+    persistent(n_leaf->keys, sizeof(char **) * MAX_KEYS, 2);
+
     memcpy(n_leaf->pointers, o_leaf->pointers, sizeof(void *)*order);
     persistent(n_leaf, sizeof(leaf_node), 2);
 
     /* find a split key thay evenly split keys into 2 leafs
      * small keys goes to old leaf
      */
-    int split_key = find_split_key(n_leaf);
+    char * split_key = find_split_key(n_leaf);
     int  new_leaf_num_keys = 0, old_leaf_num_keys = 0;
-    for (i = 0;  i <= MAX_KEYS - 1; ++ i) {
-        if (bitmapGet(o_leaf->bitmap, i))
-        {
-            if(o_leaf->keys[i] >= split_key) {
+    for (int i = 0;  i <= MAX_KEYS - 1; ++ i) {
+        if (bitmapGet(o_leaf->bitmap, i)) {
+            if(string_comparator(o_leaf->keys[i], split_key) >= 0){
                 bitmapReset(o_leaf->bitmap, i);
                 new_leaf_num_keys++;
             }
@@ -870,7 +891,8 @@ node * insert_into_leaf_after_splitting(node * root, node * leaf, int key,
     persistent(n_leaf->bitmap, sizeof(char)*7, 2);
     /* Insert into new or old leaf depending on the key and split key */
 
-    if(key >= split_key)
+    /* if(key >= split_key) */
+    if(string_comparator(key, split_key) >= 0)
         insert_into_leaf(new_leaf, key, pointer);
     else
         insert_into_leaf(leaf, key, pointer);
@@ -892,15 +914,15 @@ node * insert_into_leaf_after_splitting(node * root, node * leaf, int key,
  * without violating the B+ tree properties.
  */
 node * insert_into_node(node * root, node * n,
-                        int left_index, int key, node * right) {
+                        int left_index, char * key, node * right) {
     int i;
 
     for (i = n->num_keys; i > left_index; i--) {
         n->pointers[i + 1] = n->pointers[i];
-        n->keys[i] = n->keys[i - 1];
+        strcpy(n->keys[i], n->keys[i - 1]);
     }
     n->pointers[left_index + 1] = right;
-    n->keys[left_index] = key;
+    strcpy(n->keys[left_index], key);
     n->num_keys++;
     return root;
 }
@@ -911,11 +933,12 @@ node * insert_into_node(node * root, node * n,
  * the order, and causing the node to split into two.
  */
 node * insert_into_node_after_splitting(node * root, node * old_node,
-                                        int left_index, int key, node * right){
+                                        int left_index, char * key, node * right){
 
-    int i, j, split, k_prime;
+    int i, j, split;
+    char * k_prime[MAX_KEY_LEN];
     node * new_node, * child;
-    int * temp_keys;
+    char ** temp_keys;
     node ** temp_pointers;
 
     /* First create a temporary set of keys and pointers
@@ -926,16 +949,21 @@ node * insert_into_node_after_splitting(node * root, node * old_node,
      * keys and pointers to the old node and
      * the other half to the new.
      */
-
     temp_pointers = malloc( (order + 1) * sizeof(node *) );
     if (temp_pointers == NULL) {
         perror("Temporary pointers array for splitting nodes.");
         exit(EXIT_FAILURE);
     }
-    temp_keys = malloc( order * sizeof(int) );
+    /* temp_keys = malloc( order * sizeof(int) ); */
+    temp_keys = (char **)malloc(sizeof(char *) * order);
     if (temp_keys == NULL) {
         perror("Temporary keys array for splitting nodes.");
         exit(EXIT_FAILURE);
+    }
+    temp_keys[0] = (char *)malloc(sizeof(char) * order * MAX_KEY_LEN);
+    for(i=1; i<order; i++)
+    {
+        temp_keys[i] = temp_keys[i-1] + MAX_KEY_LEN;
     }
 
     for (i = 0, j = 0; i < old_node->num_keys + 1; i++, j++) {
@@ -945,33 +973,34 @@ node * insert_into_node_after_splitting(node * root, node * old_node,
 
     for (i = 0, j = 0; i < old_node->num_keys; i++, j++) {
         if (j == left_index) j++;
-        temp_keys[j] = old_node->keys[i];
+        strcpy(temp_keys[j], old_node->keys[i]);
     }
 
     temp_pointers[left_index + 1] = right;
-    temp_keys[left_index] = key;
+    strcpy(temp_keys[left_index], key);
 
     /* Create the new node and copy
      * half the keys and pointers to the
      * old and half to the new.
      */
     split = cut(order);
-    new_node = make_node(false);
+    new_node = make_node( );
     old_node->num_keys = 0;
     for (i = 0; i < split - 1; i++) {
         old_node->pointers[i] = temp_pointers[i];
-        old_node->keys[i] = temp_keys[i];
+        strcpy(old_node->keys[i], temp_keys[i]);
         old_node->num_keys++;
     }
     old_node->pointers[i] = temp_pointers[i];
-    k_prime = temp_keys[split - 1];
+    strcpy(k_prime, temp_keys[split - 1]);
     for (++i, j = 0; i < order; i++, j++) {
         new_node->pointers[j] = temp_pointers[i];
-        new_node->keys[j] = temp_keys[i];
+        strcpy(new_node->keys[j], temp_keys[i]);
         new_node->num_keys++;
     }
     new_node->pointers[j] = temp_pointers[i];
     free(temp_pointers);
+    free(temp_keys[0]);
     free(temp_keys);
     new_node->parent = old_node->parent;
     for (i = 0; i <= new_node->num_keys; i++) {
@@ -986,7 +1015,6 @@ node * insert_into_node_after_splitting(node * root, node * old_node,
      * nodes resulting from the split, with
      * the old node to the left and the new to the right.
      */
-
     return insert_into_parent(root, old_node, k_prime, new_node);
 }
 
@@ -995,7 +1023,7 @@ node * insert_into_node_after_splitting(node * root, node * old_node,
 /* Inserts a new node (leaf or internal node) into the B+ tree.
  * Returns the root of the tree after insertion.
  */
-node * insert_into_parent(node * root, node * left, int key, node * right) {
+node * insert_into_parent(node * root, node * left, char * key, node * right){
 
     int left_index;
     node * parent;
@@ -1042,10 +1070,10 @@ node * insert_into_parent(node * root, node * left, int key, node * right) {
  * and inserts the appropriate key into
  * the new root.
  */
-node * insert_into_new_root(node * left, int key, node * right) {
+node * insert_into_new_root(node * left, char * key, node * right) {
 
-    node * root = make_node(false);
-    root->keys[0] = key;
+    node * root = make_node( );
+    strcpy(root->keys[0], key);
     root->pointers[0] = left;
     root->pointers[1] = right;
     root->num_keys++;
@@ -1068,13 +1096,13 @@ node * insert_into_new_root(node * left, int key, node * right) {
 /* First insertion:
  * start a new tree.
  */
-node * start_new_tree(int key, record * pointer) {
-
+node * start_new_tree(char * key, record * pointer) {
     node * root = make_leaf();
     leaf_node * root_leaf = LEAF_RAW(root);
-    root_leaf->keys[0] = key;
+
+    strcpy(root_leaf->keys[0], key);
     root_leaf->pointers[0] = pointer;
-    persistent(&(root_leaf->keys[0]), sizeof(root_leaf->keys[0]), 2);
+    persistent(root_leaf->keys[0], strlen(root_leaf->keys[0]), 2);
     persistent(&(root_leaf->pointers[0]), sizeof(void *), 2);
     bitmapSet(root_leaf->bitmap, 0);
     persistent(root_leaf->bitmap, sizeof(char), 2);
@@ -1108,7 +1136,7 @@ node * start_new_tree(int key, record * pointer) {
  * however necessary to maintain the B+ tree
  * properties.
  */
-node * insert( node * root, int key, int value ) {
+node * insert( node * root, char * key, int value ) {
 
     record * pointer;
     node * leaf;
@@ -1184,32 +1212,27 @@ int get_neighbor_index( node * n ) {
     exit(EXIT_FAILURE);
 }
 
-/*FPTree FIXME: fix the case for LEAF nodes*/
-node * remove_entry_from_node(node * n, int key, node * pointer) {
 
-    int i, num_pointers;
+node * remove_entry_from_node(node * n, char * key, node * pointer) {
+
+    int i = 0, num_pointers;
 
 
     /* Remove the key and shift other keys accordingly. */
-    if (IS_LEAF(n))
-    {
+    if (IS_LEAF(n)) {
         leaf_node * leaf = LEAF_RAW(n);
-        i = 0;
-        while (leaf->keys[i] != key)
+        while (strcmp(leaf->keys[i], key) != 0 )
             i++;
         bitmapReset(leaf->bitmap, i);
         persistent(leaf->bitmap, sizeof(char)*7, 2);
-        // One key fewer.
         leaf->num_keys--;
 
         return n;
-    }
-    else    //inner nodes
-    {
-        while (n->keys[i] != key)
+    }else{
+        while (strcmp( n->keys[i], key) != 0)
             i++;
         for (++i; i < n->num_keys; i++)
-            n->keys[i - 1] = n->keys[i];
+            strcpy(n->keys[i - 1], n->keys[i]);
 
         /* Remove the pointer and shift other pointers accordingly.
         * First determine number of pointers.
@@ -1225,17 +1248,18 @@ node * remove_entry_from_node(node * n, int key, node * pointer) {
 
         n->num_keys--;
 
-        // Set the other pointers to NULL for tidiness.
-        // A leaf uses the last pointer to point to the next leaf.
+        /* Set the other pointers to NULL for tidiness.
+         * A leaf uses the last pointer to point to the next leaf.
+         */
         for (i = n->num_keys + 1; i < order; i++)
             n->pointers[i] = NULL;
         return n;
     }
-
 }
 
 
-/* This funcition is called when a key/pointer is removed from a root node */
+/* This funcition is called when a key/pointer is removed from a root node
+ */
 node * adjust_root(node * root) {
 
     node * new_root;
@@ -1259,21 +1283,21 @@ node * adjust_root(node * root) {
         new_root = root->pointers[0];
         new_root->parent = NULL;
 
-        free(root->keys);
+        free(root->keys[0]);
         free(root->pointers);
         free(root);
     }
 
-        // If it is a leaf (has no children),
-        // then the whole tree is empty.
-
-    else
+        /*If it is a leaf (has no children),
+         * then the whole tree is empty.
+         */
+    else {
         new_root = NULL;
         leaf_node *leaf = LEAF_RAW(root);
-        free(leaf->keys);
-        free(leaf->pointers);
-        free(leaf);
-
+        pfree(leaf->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+        pfree(leaf->pointers,  order * sizeof(void *) );
+        pfree(leaf, sizeof(leaf_node));
+    }
     return new_root;
 }
 
@@ -1285,15 +1309,15 @@ node * adjust_root(node * root) {
  * without exceeding the maximum.
  */
 node * coalesce_nodes(node * root, node * n, node * neighbor,
-                      int neighbor_index, int k_prime){
+                      int neighbor_index, char * k_prime){
 
     int i, j, neighbor_insertion_index, n_end;
     node * tmp;
+    leaf_node *tmp_leaf;
 
     /* Swap neighbor with node if node is on the
      * extreme left and neighbor is to its right.
      */
-
     if (neighbor_index == -1) {
         tmp = n;
         n = neighbor;
@@ -1317,15 +1341,14 @@ node * coalesce_nodes(node * root, node * n, node * neighbor,
 
         /* Append k_prime.
          */
-
-        neighbor->keys[neighbor_insertion_index] = k_prime;
+        strcpy(neighbor->keys[neighbor_insertion_index], k_prime);
         neighbor->num_keys++;
 
 
         n_end = n->num_keys;
 
-        for (i = neighbor_insertion_index + 1, j = 0; j < n_end; i++, j++) {
-            neighbor->keys[i] = n->keys[j];
+        for (i = neighbor_insertion_index + 1, j = 0; j < n_end; i++, j++){
+            strcpy(neighbor->keys[i], n->keys[j]);
             neighbor->pointers[i] = n->pointers[j];
             neighbor->num_keys++;
             n->num_keys--;
@@ -1342,11 +1365,20 @@ node * coalesce_nodes(node * root, node * n, node * neighbor,
 
         for (i = 0; i < neighbor->num_keys + 1; i++) {
             tmp = (node *)neighbor->pointers[i];
-            tmp->parent = neighbor;
+            if(IS_LEAF(tmp))
+                LEAF_RAW(tmp)->parent = neighbor;
+            else
+                tmp->parent = neighbor;
         }
+
+        root = delete_entry(root, n->parent, k_prime, n);
+        free(n->keys[0]);
+        free(n->pointers);
+        free(n);
     }
 
-        /* In a leaf, append the keys and pointers of
+        /* Actually FPTree never goes here, so ignore this
+         * In a leaf, append the keys and pointers of
          * n to the neighbor.
          * Set the neighbor's last pointer to point to
          * what had been n's right neighbor.
@@ -1354,26 +1386,24 @@ node * coalesce_nodes(node * root, node * n, node * neighbor,
          */
 
     else {
-        leaf_node * leaf_neigbor = LEAF_RAW(neighbor);
-        for (i = 0; i < order; i++)
-        {
-            if(!bitmapGet(leaf_neigbor->bitmap, i))
-            {
-                leaf_neigbor->keys[i] = n->keys[j];
+        leaf_node *leaf_neigbor = LEAF_RAW(neighbor);
+        for (i = 0; i < order; i++) {
+            if (!bitmapGet(leaf_neigbor->bitmap, i)) {
+                strcpy(leaf_neigbor->keys[i], n->keys[j]);
                 leaf_neigbor->pointers[i] = n->pointers[j];
-                // leaf_neigbor->num_keys++;
+                leaf_neigbor->num_keys++;
                 bitmapSet(leaf_neigbor->bitmap, i);
             }
         }
 
         leaf_neigbor->pointers[order - 1] = n->pointers[order - 1];
+        leaf_node *leaf_n = LEAF_RAW(n);
+        root = delete_entry(root, leaf_n->parent, k_prime, n);
+        pfree(leaf_n->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+        pfree(leaf_n->pointers, order * sizeof(void *));
+        pfree(leaf_n, sizeof(leaf_node));
     }
 
-    leaf_node *leaf_n = LEAF_RAW(n);
-    root = delete_entry(root, leaf_n->parent, k_prime, n);
-    free(leaf_n->keys);
-    free(leaf_n->pointers);
-    free(leaf_n);
     return root;
 }
 
@@ -1389,7 +1419,7 @@ node * coalesce_nodes(node * root, node * n, node * neighbor,
  * there is less than half of the space is used
  */
 node * redistribute_nodes(node * root, node * n, node * neighbor,
-                          int neighbor_index, int k_prime_index, int k_prime){
+                          int neighbor_index, int k_prime_index, char * k_prime){
 
     int i;
     node * tmp;
@@ -1407,24 +1437,30 @@ node * redistribute_nodes(node * root, node * n, node * neighbor,
     if (neighbor_index != -1) {
         if (!IS_LEAF(n))
             n->pointers[n->num_keys + 1] = n->pointers[n->num_keys];
+
+        //FIXME: ATTENTION
         for (i = n->num_keys; i > 0; i--) {
-            n->keys[i] = n->keys[i - 1];
+            strcpy(n->keys[i],  n->keys[i - 1]);
             n->pointers[i] = n->pointers[i - 1];
         }
         if (!IS_LEAF(n)) {
             n->pointers[0] = neighbor->pointers[neighbor->num_keys];
             tmp = (node *)n->pointers[0];
-            tmp->parent = n;
+            if(IS_LEAF(tmp))
+                LEAF_RAW(tmp)->parent = n;
+            else
+                tmp->parent = n;
             neighbor->pointers[neighbor->num_keys] = NULL;
-            n->keys[0] = k_prime;
-            n->parent->keys[k_prime_index] =
-                    neighbor->keys[neighbor->num_keys - 1];
+
+            strcpy(n->keys[0], k_prime);
+            strcpy(n->parent->keys[k_prime_index],
+                   neighbor->keys[neighbor->num_keys - 1]);
         }
         else {
             n->pointers[0] = neighbor->pointers[neighbor->num_keys - 1];
             neighbor->pointers[neighbor->num_keys - 1] = NULL;
-            n->keys[0] = neighbor->keys[neighbor->num_keys - 1];
-            n->parent->keys[k_prime_index] = n->keys[0];
+            strcpy(n->keys[0], neighbor->keys[neighbor->num_keys - 1]);
+            strcpy( n->parent->keys[k_prime_index], n->keys[0]);
         }
     }
 
@@ -1436,19 +1472,23 @@ node * redistribute_nodes(node * root, node * n, node * neighbor,
 
     else {
         if (IS_LEAF(n)) {
-            n->keys[n->num_keys] = neighbor->keys[0];
+            strcpy(n->keys[n->num_keys], neighbor->keys[0]);
             n->pointers[n->num_keys] = neighbor->pointers[0];
-            n->parent->keys[k_prime_index] = neighbor->keys[1];
+            strcpy(n->parent->keys[k_prime_index], neighbor->keys[1]);
         }
         else {
-            n->keys[n->num_keys] = k_prime;
+
+            strcpy(n->keys[n->num_keys], k_prime);
             n->pointers[n->num_keys + 1] = neighbor->pointers[0];
             tmp = (node *)n->pointers[n->num_keys + 1];
-            tmp->parent = n;
-            n->parent->keys[k_prime_index] = neighbor->keys[0];
+            if(IS_LEAF(tmp))
+                LEAF_RAW(tmp)->parent = n;
+            else
+                tmp->parent = n;
+            strcpy(n->parent->keys[k_prime_index], neighbor->keys[0]);
         }
         for (i = 0; i < neighbor->num_keys - 1; i++) {
-            neighbor->keys[i] = neighbor->keys[i + 1];
+            strcpy(neighbor->keys[i], neighbor->keys[i + 1]);
             neighbor->pointers[i] = neighbor->pointers[i + 1];
         }
         if (!IS_LEAF(n))
@@ -1471,15 +1511,17 @@ node * redistribute_nodes(node * root, node * n, node * neighbor,
  * from the leaf, and then makes all appropriate
  * changes to preserve the B+ tree properties.
  */
-node * delete_entry( node * root, node * n, int key, void * pointer ) {
+node * delete_entry( node * root, node * n, char * key, void * pointer ) {
 
     int min_keys;
     node * neighbor;
     int neighbor_index;
-    int k_prime_index, k_prime;
+    int k_prime_index;
+    char * k_prime;
     int capacity;
 
-    // Remove key and pointer from node.
+    /* Remove key and pointer from node.
+     */
 
     n = remove_entry_from_node(n, key, pointer);
 
@@ -1505,8 +1547,8 @@ node * delete_entry( node * root, node * n, int key, void * pointer ) {
      */
     if(!IS_LEAF(n)){
         if (n->num_keys >= min_keys)
-            return root;}
-    else{
+            return root;
+    } else{
         if (LEAF_RAW(n)->num_keys >= min_keys)
             return root; }
 
@@ -1546,7 +1588,7 @@ node * delete_entry( node * root, node * n, int key, void * pointer ) {
             neighbor = neighbor_index == -1 ? leaf_n->parent->pointers[1] :
                        leaf_n->parent->pointers[neighbor_index];
             k_prime = LEAF_RAW(n)->parent->keys[k_prime_index];
-            delete_entry(root, leaf_n->parent, k_prime, n);
+            root = delete_entry(root, leaf_n->parent, k_prime, n);
             micro_log *ulog = get_log(delete_array);
             ulog->p_current = leaf_n;
             persistent(&(ulog->p_current), sizeof(micro_log *), 2);
@@ -1556,9 +1598,9 @@ node * delete_entry( node * root, node * n, int key, void * pointer ) {
                     leaf_n->pointers[order - 1];
             persistent(&(LEAF_RAW(neighbor)->pointers[order - 1]),
                        sizeof(void *), 2);
-            free(leaf_n->keys);
-            free(leaf_n->pointers);
-            free(leaf_n);
+            pfree(leaf_n->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+            pfree(leaf_n->pointers, order * sizeof(void *));
+            pfree(leaf_n, sizeof(leaf_node));
             reset_log(delete_array);
             return root;
         }else
@@ -1567,21 +1609,23 @@ node * delete_entry( node * root, node * n, int key, void * pointer ) {
 }
 
 
-
 /* Master deletion function.
  */
-node * delete(node * root, int key) {
+node * delete(node * root, char * key) {
 
-node * key_leaf;
-record * key_record;
+    node * key_leaf;
+    record * key_record;
 
-key_record = find(root, key, false, NULL);
-key_leaf = find_leaf(root, key, false);
-if (key_record != NULL && key_leaf != NULL) {
-    root = delete_entry(root, key_leaf, key, key_record);
-    free(key_record);
-}
-return root;
+    key_record = find(root, key, false, NULL);
+    if(key_record == NULL)
+        return root;
+    key_leaf = find_leaf(root, key, false);
+    leaf_node *l =LEAF_RAW(key_leaf);
+    if (key_record != NULL && key_leaf != NULL) {
+        root = delete_entry(root, key_leaf, key, key_record);
+        pfree(key_record, sizeof(record));
+    }
+    return root;
 }
 
 
@@ -1590,18 +1634,20 @@ void destroy_tree_nodes(node * root) {
     if (IS_LEAF(root)){
         /* FPTree change
         for (i = 0; i < root->num_keys; i++)
-        free(root->pointers[i]);*/
+        pfree(root->pointers[i]);*/
         for (i = 0; i < order - 1; i++)
-            if(root->pointers[i] != NULL)
-                free(root->pointers[i]);
-    }
-
-    else
+            if(LEAF_RAW(root)->pointers[i] != NULL)
+                pfree(LEAF_RAW(root)->pointers[i], sizeof(record));
+        pfree(LEAF_RAW(root)->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
+        pfree(LEAF_RAW(root)->pointers, order * sizeof(void *));
+        pfree(LEAF_RAW(root), sizeof(leaf_node));
+    } else{
         for (i = 0; i < root->num_keys + 1; i++)
             destroy_tree_nodes(root->pointers[i]);
-    free(root->pointers);
-    free(root->keys);
-    free(root);
+        free(root->pointers);
+        free(root->keys[0]);
+        free(root);
+    }
 }
 
 
