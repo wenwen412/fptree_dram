@@ -145,7 +145,9 @@ void find_and_print(node * root, char * key, bool verbose);
 void find_and_print_range(node * root, char * range1, char * range2, bool verbose);
 int find_range( node * root, char * key_start, char * key_end, bool verbose,
                 char * returned_keys[], void * returned_pointers[]);
-node * find_leaf( node * root, char * key, bool verbose );
+int find_range2( node * root, char * key_start, int num_keys, bool verbose,
+                 char * returned_keys[], void * returned_pointers[]);
+        node * find_leaf( node * root, char * key, bool verbose );
 record * find( node * root, char * key, bool verbose, record * r);
 int cut( int length );
 
@@ -180,3 +182,8 @@ node * redistribute_nodes(node * root, node * n, node * neighbor,
 node * delete_entry( node * root, node * n, char * key, void * pointer );
 node * delete( node * root, char * key );
 node * destroy_tree(node * root);
+
+//rebuild.
+
+node * rebuild();
+char * get_min_key_of_leaf(node * n);

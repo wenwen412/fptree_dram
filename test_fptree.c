@@ -58,13 +58,46 @@ int main( int argc, char ** argv ) {
         root = insert(root, (char*)buf, nums);
         nums++;
     }
-    // print_tree(root);
-
     finish = clock();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf( "FPTree Insert spends %f seconds\n", duration );
 
-    find_and_print_range(root, "1000099", "1000199", false);
+
+    /* Range scan
+     */
+    start = clock();
+    char start_key[100];
+    if(strcmp(input_file,"words2.txt") == 0)
+        strcpy(start_key, "aplitic");
+    else if (strcmp(input_file,"seq_nums.txt") == 0)
+        strcpy(start_key, "1500000");
+    else if (strcmp(input_file,"rd_string_1m.txt") == 0)
+        strcpy(start_key, "SjoaTJY");
+    /* int array_size = key_end - key_start + 1;
+    * We temporarily set array size to MAX_RANGE*/
+    int array_size = MAX_RANGE;
+    char * returned_keys[array_size];
+    void * returned_pointers[array_size];
+    int num_found = find_range2( root, start_key, 10000, false,
+                                returned_keys, returned_pointers );
+    if (!num_found)
+        printf("None found.\n");
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf( "FPTree range scan spends %f seconds\n", duration );
+
+    /* rebuild
+     */
+    /*
+    start = clock();
+    node * new_root = rebuild();
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf( "FPTree rebuild spends %f seconds\n", duration );
+    */
+
+
+
     /* Search */
     fseek(fp, 0, SEEK_SET);
     line = 1;
@@ -84,7 +117,6 @@ int main( int argc, char ** argv ) {
     line = 1;
     fseek(fp, 0, SEEK_SET);
     start = clock();
-    uintptr_t val;
     while (fgets(buf, sizeof buf, fp)) {
         len = strlen(buf);
         buf[len-1] = '\0';

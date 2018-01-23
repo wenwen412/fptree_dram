@@ -86,6 +86,13 @@ bool verbose_output = false;
  */
 node * queue = NULL;
 
+
+/* leaf_head point to the first leaf in the linked-list
+ * We will need it in case of recovery
+ */
+leaf_node * leaf_head = NULL;
+
+
 /*The log_head is use to locate the array of a linked list of micro_log
  * micro_log is used when doing leaf splitting
  * each micro_log contains 2 pointers: p_current and p_new
@@ -606,6 +613,42 @@ int find_range( node * root, char * key_start, char * key_end, bool verbose,
 }
 
 
+
+/* Finds keys and their pointers, if present, in the range specified
+ * by key_start and key_end, inclusive.  Places these in the arrays
+ * returned_keys and returned_pointers, and returns the number of
+ * entries found.
+ */
+int find_range2( node * root, char * key_start, int num_keys, bool verbose,
+                char * returned_keys[], void * returned_pointers[]) {
+    int i, num_found;
+    leaf_node * leaf_n;
+    num_found = 0;
+    node * n = find_leaf( root, key_start, verbose);
+    if (n == NULL) return 0;
+    leaf_n = LEAF_RAW(n);
+    while(leaf_n != NULL){
+        for(i = 0; i < MAX_KEYS; i++) {
+            if(bitmapGet(leaf_n->bitmap, i)) {
+                if((string_comparator(key_start, leaf_n->keys[i]) <=0)) {
+                    returned_keys[num_found] = leaf_n->keys[i];
+                    returned_pointers[num_found++] = leaf_n->pointers[i];
+                    if (num_keys <= num_found) {
+                        leaf_n = NULL;
+                        break;
+                    }
+                }
+            }
+        }
+        if(leaf_n == NULL)
+            break;
+        leaf_n = LEAF_RAW(leaf_n->pointers[order - 1]);
+
+    }
+    return num_found;
+}
+
+
 /* Traces the path from the root to a leaf, searching
  * by key.  Displays information about the path
  * if the verbose flag is set.
@@ -655,7 +698,8 @@ record * find( node * root, char * key, bool verbose, record * r ) {
     int i = 0;
     leaf_node * l;
     node * c = find_leaf( root, key, verbose );
-    if (c == NULL) return NULL;
+    if (c == NULL)
+        return NULL;
     if (!IS_LEAF(c)) return NULL;
     l = LEAF_RAW(c);
 
@@ -860,8 +904,7 @@ node * insert_into_leaf_after_splitting(node * root, node * leaf, char * key,
 
     memcpy(n_leaf->keys[0], o_leaf->keys[0],
            sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
-    for(int i=1; i<MAX_KEYS; i++)
-    {
+    for(int i=1; i<MAX_KEYS; i++) {
         n_leaf->keys[i] = n_leaf->keys[i-1] + MAX_KEY_LEN;
     }
     /*persistent() on every keys in the leaf */
@@ -1107,7 +1150,7 @@ node * insert_into_new_root(node * left, char * key, node * right) {
 node * start_new_tree(char * key, record * pointer) {
     node * root = make_leaf();
     leaf_node * root_leaf = LEAF_RAW(root);
-
+    leaf_head = root;
     strcpy(root_leaf->keys[0], key);
     root_leaf->pointers[0] = pointer;
     persistent(root_leaf->keys[0], strlen(root_leaf->keys[0]), 2);
@@ -1277,8 +1320,6 @@ node * adjust_root(node * root) {
      * so nothing to be done.
      */
 
-    if (root->num_keys > 0)
-        return root;
 
     /* Case: empty root.
      */
@@ -1288,8 +1329,13 @@ node * adjust_root(node * root) {
     * as the new root.
     */
     if (!IS_LEAF(root)) {
+        if (root->num_keys > 0)
+            return root;
         new_root = root->pointers[0];
-        new_root->parent = NULL;
+        if(IS_LEAF(new_root))
+            LEAF_RAW(new_root)->parent = NULL;
+        else
+            new_root->parent = NULL;
 
         free(root->keys[0]);
         free(root->pointers);
@@ -1302,6 +1348,8 @@ node * adjust_root(node * root) {
     else {
         new_root = NULL;
         leaf_node *leaf = LEAF_RAW(root);
+        if (leaf->num_keys > 0)
+            return root;
         pfree(leaf->keys[0], sizeof(char) * MAX_KEYS * MAX_KEY_LEN);
         pfree(leaf->pointers,  order * sizeof(void *) );
         pfree(leaf, sizeof(leaf_node));
@@ -1662,4 +1710,40 @@ void destroy_tree_nodes(node * root) {
 node * destroy_tree(node * root) {
     destroy_tree_nodes(root);
     return NULL;
+}
+
+
+/* Recovery function
+ * Rebuild a FPTree while all leaf nodes already available*/
+
+node * rebuild(){
+    node * root;
+    leaf_node * current_leaf = LEAF_RAW(leaf_head);
+    current_leaf->parent = NULL;
+    char * k_prime;
+
+    while (LEAF_RAW(current_leaf->pointers[order-1]) != NULL){
+        k_prime = get_min_key_of_leaf(current_leaf->pointers[order-1]);
+        root = insert_into_parent(leaf_head, leaf_head, k_prime,
+                           current_leaf->pointers[order-1]);
+        current_leaf = LEAF_RAW(current_leaf->pointers[order-1]);
+    }
+    return root;
+}
+
+char * get_min_key_of_leaf(node * n){
+    leaf_node *leaf_n = LEAF_RAW(n);
+    char * min_key = NULL;
+
+    for(int i = 1; i < MAX_KEYS; i++){
+        if (bitmapGet(leaf_n->bitmap, i)){
+            if(min_key == NULL)
+                min_key = leaf_n->keys[i];
+            else{
+                if(string_comparator(min_key, leaf_n->keys[i]) > 0)
+                    min_key = leaf_n->keys[i];
+            }
+        }
+    }
+    return  min_key;
 }
