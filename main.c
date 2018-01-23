@@ -200,7 +200,6 @@ static void reset(byte *a, byte pos) {
 }
 
 
-
 // OUTPUT AND UTILITIES
 
 /* Copyright and license notice to user at startup.
@@ -551,11 +550,13 @@ void find_and_print(node * root, char * key, bool verbose) {
 /* Finds and prints the keys, pointers, and values within a range
  * of keys between key_start and key_end, including both bounds.
  */
-void find_and_print_range( node * root, int key_start, int key_end,
+void find_and_print_range( node * root, char * key_start, char * key_end,
                            bool verbose ) {
     int i;
-    int array_size = key_end - key_start + 1;
-    int returned_keys[array_size];
+    /* int array_size = key_end - key_start + 1;
+     * We temporarily set array size to MAX_RANGE*/
+    int array_size = MAX_RANGE;
+    char * returned_keys[array_size];
     void * returned_pointers[array_size];
     int num_found = find_range( root, key_start, key_end, verbose,
                                 returned_keys, returned_pointers );
@@ -577,22 +578,29 @@ void find_and_print_range( node * root, int key_start, int key_end,
  * returned_keys and returned_pointers, and returns the number of
  * entries found.
  */
-int find_range( node * root, int key_start, int key_end, bool verbose,
-                int returned_keys[], void * returned_pointers[]) {
+int find_range( node * root, char * key_start, char * key_end, bool verbose,
+                char * returned_keys[], void * returned_pointers[]) {
     int i, num_found;
+    leaf_node * leaf_n;
     num_found = 0;
     node * n = find_leaf( root, key_start, verbose);
     if (n == NULL) return 0;
-    for (i = 0; i < n->num_keys && n->keys[i] < key_start; i++) ;
-    if (i == n->num_keys) return 0;
-    while (n != NULL) {
-        for ( ; i < n->num_keys && n->keys[i] <= key_end; i++) {
-            returned_keys[num_found] = n->keys[i];
-            returned_pointers[num_found] = n->pointers[i];
-            num_found++;
+    leaf_node * leaf_end = LEAF_RAW(find_leaf( root, key_end, verbose));
+    leaf_n = LEAF_RAW(n);
+    while(leaf_n != NULL){
+        for(i = 0; i < MAX_KEYS; i++) {
+            if(bitmapGet(leaf_n->bitmap, i)) {
+                if((string_comparator(key_start, leaf_n->keys[i]) <=0)
+                   && (string_comparator(key_end, leaf_n->keys[i]) >= 0)) {
+                    returned_keys[num_found] = leaf_n->keys[i];
+                    returned_pointers[num_found++] = leaf_n->pointers[i];
+                }
+            }
         }
-        n = n->pointers[order - 1];
-        i = 0;
+        if(leaf_n == leaf_end)
+            break;
+        leaf_n = LEAF_RAW(leaf_n->pointers[order - 1]);
+
     }
     return num_found;
 }

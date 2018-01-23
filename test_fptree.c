@@ -64,6 +64,7 @@ int main( int argc, char ** argv ) {
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf( "FPTree Insert spends %f seconds\n", duration );
 
+    find_and_print_range(root, "1000099", "1000199", false);
     /* Search */
     fseek(fp, 0, SEEK_SET);
     line = 1;

@@ -26,6 +26,7 @@
 #define MIN_ORDER 3
 #define MAX_ORDER 64
 #define  MAX_KEY_LEN 24
+#define MAX_RANGE 100000
 
 // Constants for printing part or all of the GPL license.
 #define LICENSE_FILE "LICENSE.txt"
@@ -141,9 +142,9 @@ int path_to_root( node * root, node * child );
 void print_leaves( node * root );
 void print_tree( node * root );
 void find_and_print(node * root, char * key, bool verbose);
-void find_and_print_range(node * root, int range1, int range2, bool verbose);
-int find_range( node * root, int key_start, int key_end, bool verbose,
-                int returned_keys[], void * returned_pointers[]);
+void find_and_print_range(node * root, char * range1, char * range2, bool verbose);
+int find_range( node * root, char * key_start, char * key_end, bool verbose,
+                char * returned_keys[], void * returned_pointers[]);
 node * find_leaf( node * root, char * key, bool verbose );
 record * find( node * root, char * key, bool verbose, record * r);
 int cut( int length );
